@@ -1,0 +1,58 @@
+!pip install ipywidgets
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+import ipywidgets as widgets
+from IPython.display import display
+data = pd.read_csv('Titanic-Dataset.csv')
+data['Age'].fillna(data['Age'].median(), inplace=True)
+data['Embarked'].fillna(data['Embarked'].mode()[0], inplace=True)
+data.drop(columns=['Cabin'], inplace=True)
+data['Sex'] = data['Sex'].map({'male': 0, 'female': 1})
+data = pd.get_dummies(data, columns=['Embarked'], drop_first=True)
+X = data.drop(columns=['Survived', 'Name', 'Ticket', 'PassengerId'])
+y = data['Survived']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+svm_model = SVC()
+svm_model.fit(X_train, y_train)
+def predictsurvival(new_passenger):
+    new_passenger_df = pd.DataFrame([new_passenger])
+    new_passenger_df['Sex'] = new_passenger_df['Sex'].map({'male': 0, 'female': 1})
+    new_passenger_df = pd.get_dummies(new_passenger_df, columns=['Embarked'], drop_first=True)
+    for col in X.columns:
+        if col not in new_passenger_df.columns:
+            new_passenger_df[col] = 0
+    new_passenger_scaled = scaler.transform(new_passenger_df)
+    survival_prediction = svm_model.predict(new_passenger_scaled)
+    return survival_prediction[0]
+pclass_w = widgets.Dropdown(options=[1, 2, 3], description='Pclass:')
+sex_w = widgets.Dropdown(options=['male', 'female'], description='Sex:')
+age_w = widgets.FloatText(description='Age:')
+sibsp_w = widgets.IntText(description='SibSp:')
+parch_w = widgets.IntText(description='Parch:')
+fare_w = widgets.FloatText(description='Fare:')
+embarked_w = widgets.Dropdown(options=['C', 'Q', 'S'], description='Embarked:')
+def on_button_click(b):
+    new_passenger = {
+        'Pclass': pclass_w.value,
+        'Sex': sex_w.value,
+        'Age': age_w.value,
+        'SibSp': sibsp_w.value,
+        'Parch': parch_w.value,
+        'Fare': fare_w.value,
+        'Embarked': embarked_w.value
+    }
+    result = predictsurvival(new_passenger)
+    if result == 1:
+        display(widgets.Label(value="Survived"))
+    else:
+        display(widgets.Label(value="Did not survive"))
+button = widgets.Button(description="Predict Survival")
+button.on_click(on_button_click)
+display(pclass_w, sex_w, age_w, sibsp_w, parch_w, fare_w, embarked_w, button)
